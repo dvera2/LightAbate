@@ -17,4 +17,12 @@ public class GameEvents
 		if (PickupReceived != null)
 			PickupReceived (pickup);
 	}
+
+    public delegate void PlayerDamagedHandler( float lightTime );
+    public static event PlayerDamagedHandler PlayerDamaged;
+    public static void TriggerPlayerDamaged( float lightTime )
+    {
+        if (PlayerDamaged != null)
+            PlayerDamaged(lightTime);
+    }
 }

@@ -9,6 +9,9 @@ public class CharacterLightController : MonoBehaviour {
 	[SerializeField]
 	private float _startingLightTime = 30.0f;
 
+    [SerializeField]
+    private float _maximumLightTime = 30.0f;
+
 	[SerializeField]
 	private Renderer _characterRenderer;
 
@@ -31,6 +34,7 @@ public class CharacterLightController : MonoBehaviour {
 	void Start()
 	{
 		GameEvents.PickupReceived += HandlePickupReceived;
+        GameEvents.PlayerDamaged += OnDamage;
 
 		_lightTimer = _startingLightTime;
 
@@ -41,9 +45,10 @@ public class CharacterLightController : MonoBehaviour {
 			_characterRenderer.materials[_materialIndex] = _characterLightMaterialInstance;
 		}
 	}
-
+        
 	void OnDestroy()
 	{
+        GameEvents.PlayerDamaged -= OnDamage;
 		GameEvents.PickupReceived -= HandlePickupReceived;
 	}
 
@@ -56,18 +61,19 @@ public class CharacterLightController : MonoBehaviour {
 
 	public void AddLight( float lightTime )
 	{
-		_lightTimer = Mathf.Min (lightTime + _lightTimer, _startingLightTime);
+        _lightTimer = Mathf.Min (lightTime + _lightTimer, _maximumLightTime);
 	}
 	
 	public void OnDamage( float lightTime )
 	{
-		_lightTimer = Mathf.Max (0, lightTime);
+		_lightTimer = Mathf.Max (0, _lightTimer - lightTime);
 	}
 	
 	void Update()
 	{
 		_lightTimer -= Time.deltaTime;
-		
+        _lightTimer = Mathf.Clamp(_lightTimer, 0, _maximumLightTime);
+
 		if (_lightTimer <= 0) {
 			GameEvents.TriggerLightDepleted( this.gameObject );
 		}
@@ -75,7 +81,7 @@ public class CharacterLightController : MonoBehaviour {
 	
 	void LateUpdate()
 	{
-		float lightT = Mathf.Clamp01 (_lightTimer / _startingLightTime);
+        float lightT = Mathf.Max(0, _lightTimer / _startingLightTime);
 
 		if (_lightSource) {
 			if( _lightSource.type == LightType.Spot )
@@ -99,5 +105,10 @@ public class CharacterLightController : MonoBehaviour {
 		
 		}
 	}
+
+    void OnGUI()
+    {
+        GUILayout.Label( string.Format("Light Time: {0:0.00}", _lightTimer) );
+    }
 }
 
