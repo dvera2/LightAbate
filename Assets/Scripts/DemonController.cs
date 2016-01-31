@@ -46,7 +46,7 @@ public class DemonController : MonoBehaviour {
     }
 
     public Transform Player;
-    public float Health = 2;
+    private float _health = 2;
 
     [SerializeField]
     private GeneralSettings _generalSettings;
@@ -63,10 +63,18 @@ public class DemonController : MonoBehaviour {
     private float _attackTimer = 0;
     private float _defaultMoveSpeed = 1.0f;
 
+    private EnemyManager _enemyManager;
+
     void Awake()
     {
         if(_animator == null)
             _animator = GetComponent<Animator>();
+    }
+
+    void OnDestroy()
+    {
+        if (_enemyManager)
+            _enemyManager.RemoveDemon(this);
     }
 
 	// Use this for initialization
@@ -77,6 +85,14 @@ public class DemonController : MonoBehaviour {
         {
             Player = playerObj.transform;
         }
+
+        _enemyManager = GameObject.FindObjectOfType<EnemyManager>();
+        if (_enemyManager)
+        {
+            _enemyManager.AddDemon(this);
+        }
+
+        _health = _generalSettings.Health;
 	}
 	
 	// Update is called once per frame
@@ -87,6 +103,35 @@ public class DemonController : MonoBehaviour {
 
         _attackTimer -= Time.deltaTime;
 	}
+
+    public void DoDamage(float damage)
+    {
+        if (_currentState == State.Dead)
+            return;
+
+        _health -= damage;
+
+        // Died? Spawn death anim
+        if (_health <= 0)
+        {
+            _currentState = State.Dead;
+
+            if (Player)
+            {
+                Player.GetComponent<CharacterLightController>().AddLight( _generalSettings.Health );
+            }
+
+            if (_enemyManager)
+                _enemyManager.RemoveDemon(this);
+
+            PerformDeathAnimation();
+
+            Destroy(gameObject, 3.0f);
+        }
+
+    }
+
+    // ---------------------------------------------------------------------------------------
 
     protected void CheckAIRoutine( )
     {
@@ -330,6 +375,16 @@ public class DemonController : MonoBehaviour {
         }
 
         return true;
+    }
+
+    // ------------------------------------- Death -------------------------------------------------
+
+    protected void PerformDeathAnimation()
+    {
+        if (_animator)
+        {
+            _animator.SetTrigger("Death");
+        }
     }
 
     // -------------------------------------------------- DEBUG DRAWING --------------------------------------------------------
