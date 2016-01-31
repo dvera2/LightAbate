@@ -10,6 +10,7 @@ public class DemonController : MonoBehaviour {
     {
         public float Health = 1.0f;
         public float PursuitDistance = 6.0f;
+        public GameObject DeathEffect;
     }
 
     [System.Serializable]
@@ -63,12 +64,22 @@ public class DemonController : MonoBehaviour {
     private float _attackTimer = 0;
     private float _defaultMoveSpeed = 1.0f;
 
+
+    // Possible controllers
+    private AICharacterControl _aiController;
+    private ThirdPersonCharacter _thirdPersonController;
+    private CharacterController _characterController;
+
     private EnemyManager _enemyManager;
 
     void Awake()
     {
         if(_animator == null)
             _animator = GetComponent<Animator>();
+        
+        _aiController = GetComponent<AICharacterControl>();
+        _thirdPersonController = GetComponent<ThirdPersonCharacter>();
+        _characterController = GetComponent<CharacterController>();
     }
 
     void OnDestroy()
@@ -118,15 +129,19 @@ public class DemonController : MonoBehaviour {
 
             if (Player)
             {
-                Player.GetComponent<CharacterLightController>().AddLight( _generalSettings.Health );
+                Player.GetComponent<CharacterLightController>().AddLight(_generalSettings.Health);
             }
 
             if (_enemyManager)
                 _enemyManager.RemoveDemon(this);
 
             PerformDeathAnimation();
+            SpawnDeathEffect();
 
-            Destroy(gameObject, 3.0f);
+            Destroy(gameObject, 1.0f);
+        } else
+        {
+            PerformHitAnimation();
         }
 
     }
@@ -172,18 +187,27 @@ public class DemonController : MonoBehaviour {
 
         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(dirToPLayer), 8.0f);
 
+        // If we have an AI controller and Nav mesh, use that
+        if (_aiController)
+        {
+            _aiController.target = Player;
+            _aiController.agent.SetDestination(Player.position);
+            _aiController.agent.Resume();
 
-        var characterController = GetComponent<ThirdPersonCharacter>();
-        if (characterController)
+        } else
         {
-            characterController.Move(dirToPLayer, false, false);
-        }
-        else
-        {
-            var controller = GetComponent<CharacterController>();
-            if (controller)
+            // Otherwise, if we have a third person character controller, use that to move.
+            if (_thirdPersonController)
             {
-                controller.SimpleMove(_defaultMoveSpeed * dirToPLayer);
+                _thirdPersonController.Move(dirToPLayer, false, false);
+            } 
+            else
+            {
+                // Lastly, try and fall back to a generic character controller.
+                if (_characterController)
+                {
+                    _characterController.SimpleMove(_defaultMoveSpeed * dirToPLayer);
+                }
             }
         }
     }
@@ -210,10 +234,15 @@ public class DemonController : MonoBehaviour {
             return;
         }
 
+        // Stop the player in melee
+        if(_aiController)
+        {
+            _aiController.agent.Stop();
+        }
+
         // Find direction to player and turn towards him
         var vToPlayer = Player.transform.position - transform.position;
         var dirToPLayer = vToPlayer.normalized;
-
 
         transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(dirToPLayer), 5.0f);
 
@@ -270,6 +299,12 @@ public class DemonController : MonoBehaviour {
             return;
         }
 
+        // Stop the agent if he can fire.
+        if(_aiController)
+        {
+            _aiController.agent.Stop();
+        }
+
         // Find direction to player and turn towards him
         var vToPlayer = Player.transform.position - transform.position;
         var dirToPLayer = vToPlayer.normalized;
@@ -277,11 +312,14 @@ public class DemonController : MonoBehaviour {
 
         if (Vector3.Dot(transform.forward, dirToPLayer) > Mathf.Cos(Mathf.Deg2Rad * 0.5f * _rangedSettings.RangeAngleInDegrees))
         {
-            // Update attack timer loop.
-            if (_attackTimer <= 0)
+            if (CanSeePlayer())
             {
-                _attackTimer = _rangedSettings.HitTimer;
-                PerformRangedAttack();
+                // Update attack timer loop.
+                if (_attackTimer <= 0)
+                {
+                    _attackTimer = _rangedSettings.HitTimer;
+                    PerformRangedAttack();
+                }
             }
         }
     }
@@ -308,6 +346,18 @@ public class DemonController : MonoBehaviour {
             var projectile = (EnemyProjectile)GameObject.Instantiate(_rangedSettings.Projectile, spawnPosition, Quaternion.LookRotation(dirToPlayer));
             projectile.SetDirection(dirToPlayer);
         }
+    }
+
+    protected bool CanSeePlayer()
+    {
+        RaycastHit hitInfo;
+        if (Physics.Linecast(transform.position + Vector3.up, Player.position + Vector3.up, out hitInfo))
+        {
+            if(hitInfo.collider.CompareTag("Player"))
+                return true;
+        }
+
+        return false;
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -379,11 +429,27 @@ public class DemonController : MonoBehaviour {
 
     // ------------------------------------- Death -------------------------------------------------
 
+    protected void PerformHitAnimation()
+    {
+        if (_animator)
+        {
+            _animator.SetTrigger("Hit");
+        }
+    }
+
     protected void PerformDeathAnimation()
     {
         if (_animator)
         {
             _animator.SetTrigger("Death");
+        }
+    }
+
+    protected void SpawnDeathEffect()
+    {
+        if (_generalSettings.DeathEffect)
+        {
+            GameObject.Instantiate(_generalSettings.DeathEffect, transform.position, Quaternion.identity);
         }
     }
 
