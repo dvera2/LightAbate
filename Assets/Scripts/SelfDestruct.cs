@@ -3,13 +3,12 @@ using System.Collections;
 
 public class SelfDestruct : MonoBehaviour {
 
-	// Use this for initialization
-	void Start () {
-	
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
-	}
+    public float Timer = 5.0f;
+
+    void Update()
+    {
+        Timer -= Time.deltaTime;
+        if (Timer <= 0)
+            Destroy(gameObject);
+    }
 }

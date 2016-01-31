@@ -108,7 +108,7 @@ public class CharacterLightController : MonoBehaviour {
 
     void OnGUI()
     {
-        GUILayout.Label( string.Format("Light Time: {0:0.00}", _lightTimer) );
+        //GUILayout.Label( string.Format("Light Time: {0:0.00}", _lightTimer) );
     }
 }
 

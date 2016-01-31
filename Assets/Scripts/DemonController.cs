@@ -19,7 +19,7 @@ public class DemonController : MonoBehaviour {
         public float Range = 10.0f;
         public float HitTimer = 3.0f;
         public float RangeAngleInDegrees = 15.0f;
-        public GameObject Projectile;
+        public EnemyProjectile Projectile;
     }
 
     [System.Serializable]
@@ -214,9 +214,14 @@ public class DemonController : MonoBehaviour {
             return;
         }
        
-        if (Vector3.Distance(Player.position, transform.position) > _meleeSettings.MeleeRange)
+        if (Vector3.Distance(Player.position, transform.position) > _rangedSettings.Range)
         {
             _currentState = State.PatrolA;
+            return;
+        }
+
+        if (ShouldSwitchToMelee())
+        {
             return;
         }
 
@@ -255,7 +260,8 @@ public class DemonController : MonoBehaviour {
             var spawnDirection = dirToPlayer;
 
             // Spawn a hit effect
-            GameObject.Instantiate(_rangedSettings.Projectile, spawnPosition, Quaternion.LookRotation(dirToPlayer));
+            var projectile = (EnemyProjectile)GameObject.Instantiate(_rangedSettings.Projectile, spawnPosition, Quaternion.LookRotation(dirToPlayer));
+            projectile.SetDirection(dirToPlayer);
         }
     }
 
@@ -300,6 +306,7 @@ public class DemonController : MonoBehaviour {
         if (_currentState == State.Pursuit)
             return false;
 
+
         if (Vector3.Distance(Player.position, transform.position) > _generalSettings.PursuitDistance)
         {
             _currentState = State.Pursuit;
@@ -341,5 +348,10 @@ public class DemonController : MonoBehaviour {
             Gizmos.DrawLine(Vector3.zero, Quaternion.AngleAxis(-0.5f * _meleeSettings.MeleeAngleInDegrees, Vector3.up) * (_meleeSettings.MeleeRange * Vector3.forward));
             Gizmos.DrawLine(Vector3.zero, Quaternion.AngleAxis(0.5f * _meleeSettings.MeleeAngleInDegrees, Vector3.up) * (_meleeSettings.MeleeRange * Vector3.forward));
         }
+    }
+
+    void OnGUI()
+    {
+        GUILayout.Label( string.Format("EnemyState: {0}", _currentState.ToString()) );
     }
 }
